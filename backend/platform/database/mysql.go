@@ -10,7 +10,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	_ "github.com/go-sql-driver/mysql" // load driver for Mysql
+	_ "github.com/go-sql-driver/" // load driver for Mysql
 )
 
 // MysqlConnection func for connection to Mysql database.

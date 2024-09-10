@@ -1,12 +1,13 @@
+# A default .gitignore for Create Go App project.
+# Author: Vic Shóstak <vic@shostak.dev> (https://shostak.dev)
+# For more information, please visit https://create-go.app/
+
 # macOS
-**/.DS_Store
+**/.DS_store
 
-# Dev build
-build/
-tmp/
+# Go builds
+**/app/
+**/build/
 
-# Test
-*.out
-
-# Environment variables
-.env
+# Node.js dependencies
+**/node_modules/
