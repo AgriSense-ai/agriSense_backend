@@ -1,14 +1,17 @@
 package main
 
-import ("database/sql"
-		_ "github.com/lib/pq"
+import (
+	"database/sql"
+	"log"
+
+	_ "github.com/lib/pq"
 )
 
 type Storage interface {
-   CreateAccount(*Account) error
-   DeleteAccount(int) error
-   UpdateAccount(*Account) error
-   GetAccountByID(int) (*Account, error)
+	CreateAccount(*Account) error
+	DeleteAccount(int) error
+	UpdateAccount(*Account) error
+	GetAccountByID(int) (*Account, error)
 }
 
 type postgressStore struct {
@@ -16,7 +19,48 @@ type postgressStore struct {
 }
 
 func NewPostgressStore() (*postgressStore, error) {
-	// connStr := "user=postgres password= dbname=bank sslmode=disable"
-	// db, err := sql.Open(connStr)
+	connStr := "user=root password=ConradKash dbname=agrisense sslmode=disable"
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := db.Ping(); err != nil {
+		return nil, err
+	}
+
+	return &postgressStore{db: db}, nil
+}
+
+func (s *postgressStore) Init() error {
+	return s.createAccountTable()
+}
+
+
+func (s *postgressStore) createAccountTable() error {
+	query := `CREATE TABLE IF NOT EXISTS account (
+				id SERIAL PRIMARY KEY,
+				first_name VARCHAR(50), 
+				last_name VARCHAR(50),
+				number SERIAL,
+				balance INT,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+				);`
+	_, err := s.db.Exec(query)
+	return err
+}
+
+func (s *postgressStore) CreateAccount(*Account) error {
+	return nil
+}
+
+func (s *postgressStore) GetAccountByID(id int) (*Account, error) {
 	return nil, nil
+}
+
+func (s *postgressStore) UpdateAccount(*Account) error {
+	return nil
+}
+
+func (s *postgressStore) DeleteAccount(id int) error {
+	return nil
 }
