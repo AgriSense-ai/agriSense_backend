@@ -20,10 +20,6 @@ type postgressStore struct {
 	db *sql.DB
 }
 
-// GetAccounts implements Storage.
-func (s *postgressStore) GetAccounts() ([]*Account, error) {
-	panic("unimplemented")
-}
 
 func NewPostgressStore() (*postgressStore, error) {
 	connStr := "user=root password=ConradKash dbname=agrisense sslmode=disable"
@@ -71,6 +67,30 @@ func (s *postgressStore) CreateAccount(acc *Account) error {
 	}
 	fmt.Printf("%+v\n", resp)
 	return nil
+}
+
+func (s *postgressStore) GetAccounts() ([]*Account, error) {
+	query := `SELECT * FROM account;`
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	accounts := []*Account{}
+	for rows.Next() {
+		acc := new(Account)
+		err := rows.Scan(
+			&acc.ID, 
+			&acc.FirstName, 
+			&acc.LastName, 
+			&acc.Number, 
+			&acc.Balance, 
+			&acc.CreatedAt); 
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, acc)
+	}
+	return accounts, nil
 }
 
 func (s *postgressStore) GetAccountByID(id int) (*Account, error) {
