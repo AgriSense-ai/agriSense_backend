@@ -25,7 +25,7 @@ func (s *APIServer) Run() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/account", makeHTTPHandler(s.handleAccount))
-	router.HandleFunc("/account/{id}", makeHTTPHandler(s.handleAccount))
+	router.HandleFunc("/account/{id}", makeHTTPHandler(s.handleGetAccount))
 
 	log.Printf("API server listening on %s", s.listenAddr)
 
