@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 )
 
@@ -26,7 +28,8 @@ func (s *APIServer) Run() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/account", makeHTTPHandler(s.handleAccount))
-	router.HandleFunc("/account/{id}", makeHTTPHandler(s.handleGetAccountWithID))
+	router.HandleFunc("/account/{id}", WithJWTAuth(makeHTTPHandler(s.handleGetAccountWithID)))
+	router.HandleFunc("/transfer", makeHTTPHandler(s.handleTransfer))
 
 	log.Printf("API server listening on %s", s.listenAddr)
 
@@ -43,7 +46,7 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 	if r.Method == "DELETE" {
 		return s.handleDeleteAccount(w, r)
 	}
-	return fmt.Errorf("not implemented %s", r.Method)
+	return WriteJSON(w, http.StatusMethodNotAllowed, APIError{Error: "Method not allowed"})
 }
 
 func (s *APIServer) handleGetAccountWithID(w http.ResponseWriter, r *http.Request) error {
@@ -53,7 +56,7 @@ func (s *APIServer) handleGetAccountWithID(w http.ResponseWriter, r *http.Reques
 	if r.Method == "DELETE" {
 		return s.handleDeleteAccount(w, r)
 	}
-	return fmt.Errorf("not implemented %s", r.Method)
+	return WriteJSON(w, http.StatusMethodNotAllowed, APIError{Error: "Method not allowed"})
 }
 
 func (s *APIServer) handleGetAccount(w http.ResponseWriter) error {
@@ -89,6 +92,11 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 	if err := s.store.CreateAccount(account); err != nil {
 		return err
 	}
+	token, err := createJWT(account)
+	if err != nil {
+		return err
+	}
+	fmt.Println("JWT Token: ", token)
 
 	return WriteJSON(w, http.StatusCreated, account)
 }
@@ -106,14 +114,53 @@ func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error {
+	transferReq := new(TransferRequest)
+	if err := json.NewDecoder(r.Body).Decode(transferReq); err != nil {
+		return err
+	}
+	defer r.Body.Close()
 
-	return nil
+	return WriteJSON(w, http.StatusAccepted, transferReq)
+}
+
+func createJWT(account *Account) (string, error) {
+	secret := os.Getenv("JWT_SECRET")
+	claims := jwt.MapClaims{
+		"expiresAt":     150000,
+		"accountNumber": account.Number,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	return token.SignedString([]byte(secret))
 }
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(status)
 	return json.NewEncoder(w).Encode(v)
+}
+
+func WithJWTAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tokenString := r.Header.Get("Authorization")
+		_, err := validateJWT(tokenString)
+		if err != nil {
+			WriteJSON(w, http.StatusUnauthorized, APIError{Error: "Unauthorized"})
+			return
+		}
+		handlerFunc(w, r)
+	}
+}
+
+func validateJWT(tokenString string) (*jwt.Token, error) {
+	secret := os.Getenv("JWT_SECRET")
+
+	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secret), nil
+	})
 }
 
 type apiFunc func(http.ResponseWriter, *http.Request) error
