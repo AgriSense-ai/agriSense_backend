@@ -28,7 +28,7 @@ func (s *APIServer) Run() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/account", makeHTTPHandler(s.handleAccount))
-	router.HandleFunc("/account/{id}", WithJWTAuth(makeHTTPHandler(s.handleGetAccountWithID)))
+	router.HandleFunc("/account/{id}", WithJWTAuth(makeHTTPHandler(s.handleGetAccountWithID), s.store))
 	router.HandleFunc("/transfer", makeHTTPHandler(s.handleTransfer))
 
 	log.Printf("API server listening on %s", s.listenAddr)
@@ -42,9 +42,6 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 	}
 	if r.Method == "POST" {
 		return s.handleCreateAccount(w, r)
-	}
-	if r.Method == "DELETE" {
-		return s.handleDeleteAccount(w, r)
 	}
 	return WriteJSON(w, http.StatusMethodNotAllowed, APIError{Error: "Method not allowed"})
 }
@@ -140,14 +137,37 @@ func WriteJSON(w http.ResponseWriter, status int, v any) error {
 	return json.NewEncoder(w).Encode(v)
 }
 
-func WithJWTAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
+func WithJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tokenString := r.Header.Get("Authorization")
-		_, err := validateJWT(tokenString)
+		token , err := validateJWT(tokenString)
+		
 		if err != nil {
 			WriteJSON(w, http.StatusUnauthorized, APIError{Error: "Unauthorized"})
 			return
 		}
+		if !token.Valid {
+			WriteJSON(w, http.StatusUnauthorized, APIError{Error: "Unauthorized"})
+			return
+		}
+		userID, err := getID(r)
+		if err != nil {
+			WriteJSON(w, http.StatusBadRequest, APIError{Error: err.Error()})
+			return
+		}
+		claims := token.Claims.(jwt.MapClaims)
+		account, err := s.GetAccountByID(userID)
+		if err != nil {
+			WriteJSON(w, http.StatusNotFound, APIError{Error: err.Error()})
+			return
+		}
+		if int64(claims["accountNumber"].(float64)) != account.Number {
+			WriteJSON(w, http.StatusUnauthorized, APIError{Error: "Unauthorized"})
+			return
+		}
+
+
+
 		handlerFunc(w, r)
 	}
 }

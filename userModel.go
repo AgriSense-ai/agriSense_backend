@@ -2,6 +2,8 @@ package main
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // TODO: Read this https://gorm.io/docs/models.html
@@ -10,7 +12,7 @@ import (
 // TODO: Read this https://www.linkedin.com/pulse/database-structure-user-roles-management-aj-february/
 
 type User struct {
-	UserID         string    `gorm:"type:uuid;primary_key"`
+	UserID         uuid.UUID `gorm:"type:uuid;primary_key"`
 	Username       string    `gorm:"unique;not null"`
 	FirstName      string    `gorm:"unique;not null"`
 	LastName       string    `gorm:"unique:not null"`
@@ -19,45 +21,45 @@ type User struct {
 	DateRegistered time.Time `gorm:"default:CURRENT_TIMESTAMP"`
 	DateUpdated    time.Time `gorm:"default:CURRENT_TIMESTAMP"`
 	LastLogin      time.Time `gorm:"default:CURRENT_TIMESTAMP"`
-	isActive       bool      `gorm:"unique;not null"`
+	IsActive       bool      `gorm:"unique;not null"`
 }
 
 type Role struct {
-	RoleID      string `gorm:"type:uuid;primary_key"`
-	RoleName    string `gorm:"unique;not null"`
-	Description string `gorm:"unique;not null"`
-	Price       int64  `gorm:"not null"`
+	RoleID      uuid.UUID `gorm:"type:uuid;primary_key"`
+	RoleName    string    `gorm:"unique;not null"`
+	Description string    `gorm:"unique;not null"`
+	Price       int64     `gorm:"not null"`
 }
 
 type UserRole struct {
-	UserRoleID string `gorm:"type:uuid;primary_key"`
-	UserID     string `gorm:"type:uuid;not null;foreignkey:UserID"`
-	RoleID     string `gorm:"type:uuid;not null;foreignkey:RoleID"`
+	UserRoleID uuid.UUID `gorm:"type:uuid;primary_key"`
+	UserID     User      `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;type:uuid;not null;foreignkey:UserID;references:User"`
+	RoleID     Role      `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;type:uuid;not null;foreignkey:RoleID;references:Role"`
 }
 
 type Permission struct {
-	PermissionID   string `gorm:"type:uuid;primary_key"`
-	PermissionName string `gorm:"unique;not null"`
-	Description    string `gorm:"unique;not null"`
+	PermissionID   uuid.UUID `gorm:"type:uuid;primary_key"`
+	PermissionName string    `gorm:"unique;not null"`
+	Description    string    `gorm:"unique;not null"`
 }
 
 type RolePermission struct {
-	RolePermissionID string `gorm:"type:uuid;primary_key"`
-	RoleID           string `gorm:"type:uuid;not null;foreignkey:RoleID"`
-	PermissionID     string `gorm:"type:uuid;not null;foreignkey:PermissionID"`
+	RolePermissionID uuid.UUID  `gorm:"type:uuid;primary_key"`
+	RoleID           Role       `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;type:uuid;not null;foreignkey:RoleID;references:Role"`
+	PermissionID     Permission `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;type:uuid;not null;foreignkey:PermissionID;references:Permission"`
 }
 
 type AuditLog struct {
-	AuditLogID  string    `gorm:"type:uuid;primary_key"`
-	UserID      string    `gorm:"type:uuid;not null;foreignkey:UserID"`
+	AuditLogID  uuid.UUID `gorm:"type:uuid;primary_key"`
+	UserID      User      `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;type:uuid;not null;foreignkey:UserID;references:User"`
 	Activity    string    `gorm:"not null"`
 	DateCreated time.Time `gorm:"default:CURRENT_TIMESTAMP"`
 }
 
 type PasswordReset struct {
-	PasswordResetID string    `gorm:"type:uuid;primary_key"`
-	UserID          string    `gorm:"type:uuid;not null;foreignkey:UserID"`
+	PasswordResetID uuid.UUID `gorm:"type:uuid;primary_key"`
+	UserID          User      `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;type:uuid;not null;foreignkey:UserID;references:User"`
 	Token           string    `gorm:"not null"`
 	DateCreated     time.Time `gorm:"default:CURRENT_TIMESTAMP"`
-	ExpiryDate      time.Time `gorm:"default:CURRENT_TIMESTAMP"`
+	ExpiryDate      time.Time `gorm:"default:time.Now().Add(3 * 24 * time.Hour)"`
 }
